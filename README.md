@@ -44,3 +44,6 @@ _wird ergänzt, sobald das Projekt-Grundgerüst steht_
 | 1 | Umsetzung Version 1 | ⏳ In Bearbeitung | - | - |
 
 ## 📬 Kontakt
+Bei Fragen, Anregungen, Tipps oder Anmerkungen erreichst du mich gerne über [LinkedIn](https://www.linkedin.com/in/stefan-höger-5a375a339/) oder [XING](https://www.xing.com/profile/Stefan_Hoeger049861/web_profiles?nwt_nav=profile).
+
+Über Rückmeldungen und Austausch freue ich mich immer.
