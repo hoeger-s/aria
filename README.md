@@ -22,7 +22,7 @@ _wird ergänzt, sobald das Projekt-Grundgerüst steht_
 
 ## 🗺️ Roadmap Version 1
 
-- [ ] Projekt-Grundgerüst (Repo-Struktur, Environment, GPU-Check)
+- [x] Projekt-Grundgerüst (Repo-Struktur, Environment, GPU-Check)
 - [ ] LLM-Dienst (Ollama)
 - [ ] Spracherkennung (faster-whisper)
 - [ ] Sprachausgabe (Qwen3-TTS)
