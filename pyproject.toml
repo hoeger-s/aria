@@ -1,0 +1,21 @@
+[project]
+name = "aria"
+version = "0.1.0"
+description = "ARIA - lokaler KI-Companion mit Sprachein- und -ausgabe"
+requires-python = ">=3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle Fehler
+    "F",   # pyflakes
+    "I",   # import-Sortierung
+    "UP",  # veraltete Python-Syntax modernisieren
+    "B",   # bugbear, haeufige Bug-Muster
+]
+
+[tool.ruff.format]
+quote-style = "double"
