@@ -36,7 +36,7 @@ aria/
 ## 🗺️ Roadmap Version 1
 
 - [x] Projekt-Grundgerüst (Repo-Struktur, Environment, GPU-Check)
-- [ ] LLM-Dienst (Ollama)
+- [x] LLM-Dienst (Ollama)
 - [ ] Spracherkennung (faster-whisper)
 - [ ] Sprachausgabe (Qwen3-TTS)
 - [ ] Zusammenspiel aller Dienste über Docker Compose
