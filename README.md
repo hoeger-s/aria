@@ -38,7 +38,7 @@ aria/
 - [x] Projekt-Grundgerüst (Repo-Struktur, Environment, GPU-Check)
 - [x] LLM-Dienst (Ollama)
 - [x] Spracherkennung (faster-whisper)
-- [ ] Sprachausgabe (Qwen3-TTS)
+- [x] Sprachausgabe (Qwen3-TTS)
 - [ ] Zusammenspiel aller Dienste über Docker Compose
 - [ ] Orchestrator (FastAPI)
 - [ ] Web-Frontend mit Orb-UI
