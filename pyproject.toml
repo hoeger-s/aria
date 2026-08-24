@@ -16,6 +16,7 @@ select = [
     "UP",  # veraltete Python-Syntax modernisieren
     "B",   # bugbear, haeufige Bug-Muster
 ]
+ignore = ["B008"]  # FastAPI nutzt bewusst Funktionsaufrufe (File(), Depends(), ...) als Default-Werte
 
 [tool.ruff.format]
 quote-style = "double"
