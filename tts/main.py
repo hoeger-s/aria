@@ -8,6 +8,12 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 model = FasterQwen3TTS.from_pretrained("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
 
 

@@ -7,8 +7,8 @@ Wandelt Text in gesprochenes Audio um (1.7B-Modell, Preset-Stimme).
 
 Getestet (24.08.2026): Eigenes Docker-Image gebaut (CUDA-Basis-Image), Container mit GPU-Zugriff gestartet,
 per echtem Testsatz erfolgreich geprüft. Verständliche deutsche Sprachausgabe (mit englischem Akzent, keine
-native deutsche Preset-Stimme verfügbar), ca. 1,29s bei warmem Modell. Läuft aktuell über einzelne
-Docker-Befehle, noch nicht in eine `docker-compose.yml` überführt.
+native deutsche Preset-Stimme verfügbar), ca. 1,29s bei warmem Modell.
+Läuft gemeinsam mit den anderen beiden Diensten über `docker compose up -d`, siehe `docker-compose.yml`.
 
 > Beispiel-Audio: [example.wav](example.wav)
 

@@ -20,14 +20,15 @@ Python/FastAPI orchestriert drei isolierte lokale Dienste in eigenen Docker-Cont
 
 ```
 aria/
-├── llm/            # LLM-Dienst (Ollama)
-├── stt/            # Spracherkennung (faster-whisper)
-├── tts/            # Sprachausgabe (faster-qwen3-tts)
-├── orchestrator/   # FastAPI-Backend, verbindet die drei Dienste
-├── frontend/       # Web-Frontend (Three.js, Orb-UI)
-├── scripts/        # Start-Workflow, Wakeword-Erkennung
-├── assets/         # Bilder, Architektur-Skizze
-├── pyproject.toml  # Projekt-Metadaten, Ruff-Konfiguration
+├── llm/                # LLM-Dienst (ollama)
+├── stt/                # Spracherkennung (faster-whisper)
+├── tts/                # Sprachausgabe (faster-qwen3-tts)
+├── orchestrator/       # FastAPI-Backend, verbindet die drei Dienste
+├── frontend/           # Web-Frontend (Three.js, Orb-UI)
+├── scripts/            # Start-Workflow, Wakeword-Erkennung
+├── assets/             # Bilder, Architektur-Skizze
+├── pyproject.toml      # Projekt-Metadaten, Ruff-Konfiguration
+├── docker-compose.yml  # Alle drei KI-Dienste gemeinsam starten
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -39,7 +40,7 @@ aria/
 - [x] LLM-Dienst (Ollama)
 - [x] Spracherkennung (faster-whisper)
 - [x] Sprachausgabe (Qwen3-TTS)
-- [ ] Zusammenspiel aller Dienste über Docker Compose
+- [x] Zusammenspiel aller Dienste über Docker Compose
 - [ ] Orchestrator (FastAPI)
 - [ ] Web-Frontend mit Orb-UI
 - [ ] Wakeword-Erkennung (Doppelklatschen)

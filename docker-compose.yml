@@ -1,0 +1,62 @@
+services:
+  llm:
+    image: ollama/ollama
+    container_name: aria-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  stt:
+    build: ./stt
+    image: aria-stt
+    container_name: aria-stt
+    ports:
+      - "8001:8001"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  tts:
+    build: ./tts
+    image: aria-tts
+    container_name: aria-tts
+    ports:
+      - "8002:8002"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  ollama:
+    external: true

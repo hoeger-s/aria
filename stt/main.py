@@ -5,6 +5,12 @@ from faster_whisper import WhisperModel
 
 app = FastAPI()
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 model = WhisperModel("small", device="cuda", compute_type="int8")
 
 

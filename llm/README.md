@@ -5,8 +5,7 @@ Ollama als Docker-Service, stellt das Sprachmodell bereit (vorläufig Qwen2.5 7B
 ## Status
 
 Getestet (24.08.2026): Ollama-Container mit GPU-Zugriff, Modell `qwen2.5:7b` heruntergeladen,
-per Testanfrage erfolgreich geprüft. Läuft aktuell über einzelne Docker-Befehle, noch nicht
-in eine `docker-compose.yml` überführt.
+per Testanfrage erfolgreich geprüft. Läuft gemeinsam mit den anderen beiden Diensten über `docker compose up -d`, siehe `docker-compose.yml`.
 
 **Beispiel-Anfrage und Antwort:**
 
