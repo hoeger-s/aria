@@ -1,8 +1,9 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 import httpx
 from audio import concat_wavs
-from chunking import chunk_sentences
+from chunking import SentenceChunker
 from clients import generate_stream, speak, transcribe
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -40,8 +41,19 @@ async def converse(
         audio_bytes = await file.read()
         prompt = await transcribe(client, audio_bytes, file.filename)
 
-    audio_chunks = []
-    async for sentence in chunk_sentences(generate_stream(client, prompt)):
-        audio_chunks.append(await speak(client, sentence))
+    chunker = SentenceChunker()
+    speak_tasks: list[asyncio.Tast] = []
+
+    async for token in generate_stream(client, prompt):
+        print(token, end="", flush=True)  # roher Wort-fuer-Wort-Strom, Platzhalter fuer Baustein 7
+        for sentence in chunker.feed(token):
+            speak_tasks.append(asyncio.create_task(speak(client, sentence)))
+
+    for sentence in chunker.flush():
+        speak_tasks.append(asyncio.create_task(speak(client, sentence)))
+
+    print()  # Zeilenumbruch nach dem letzten Token
+
+    audio_chunks = await asyncio.gather(*speak_tasks)
 
     return Response(content=concat_wavs(audio_chunks), media_type="audio/wav")
