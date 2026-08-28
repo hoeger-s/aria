@@ -41,7 +41,7 @@ aria/
 - [x] Spracherkennung (faster-whisper)
 - [x] Sprachausgabe (Qwen3-TTS)
 - [x] Zusammenspiel aller Dienste über Docker Compose
-- [ ] Orchestrator (FastAPI)
+- [x] Orchestrator (FastAPI)
 - [ ] Web-Frontend mit Orb-UI
 - [ ] Wakeword-Erkennung (Doppelklatschen)
 - [ ] Start-Workflow

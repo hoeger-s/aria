@@ -42,7 +42,7 @@ async def converse(
         prompt = await transcribe(client, audio_bytes, file.filename)
 
     chunker = SentenceChunker()
-    speak_tasks: list[asyncio.Tast] = []
+    speak_tasks: list[asyncio.Task] = []
 
     async for token in generate_stream(client, prompt):
         print(token, end="", flush=True)  # roher Wort-fuer-Wort-Strom, Platzhalter fuer Baustein 7
