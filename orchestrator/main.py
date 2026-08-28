@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from clients import generate, speak, transcribe
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
 
@@ -22,11 +22,22 @@ async def health():
 
 
 @app.post("/converse")
-async def converse(request: Request, file: UploadFile = File(...)):
+async def converse(
+    request: Request,
+    file: UploadFile | None = File(None),
+    text: str | None = Form(None),
+):
+    if file is None and text is None:
+        raise HTTPException(400, "Entweder 'file' oder 'text' muss angegeben werden")
+
     client = request.app.state.http_client
 
-    audio_bytes = await file.read()
-    text = await transcribe(client, audio_bytes, file.filename)
+    if text is not None:
+        prompt = text
+    else:
+        audio_bytes = await file.read()
+        prompt = await transcribe(client, audio_bytes, file.filename)
+
     answer = await generate(client, text)
     audio = await speak(client, answer)
 
