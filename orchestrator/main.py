@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 import httpx
-from clients import generate, speak, transcribe
+from audio import concat_wavs
+from chunking import chunk_sentences
+from clients import generate_stream, speak, transcribe
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
@@ -38,7 +40,8 @@ async def converse(
         audio_bytes = await file.read()
         prompt = await transcribe(client, audio_bytes, file.filename)
 
-    answer = await generate(client, text)
-    audio = await speak(client, answer)
+    audio_chunks = []
+    async for sentence in chunk_sentences(generate_stream(client, prompt)):
+        audio_chunks.append(await speak(client, sentence))
 
-    return Response(content=audio, media_type="audio/wav")
+    return Response(content=concat_wavs(audio_chunks), media_type="audio/wav")
