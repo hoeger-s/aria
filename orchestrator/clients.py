@@ -42,7 +42,7 @@ async def generate_stream(client: httpx.AsyncClient, prompt: str):
 async def speak(client: httpx.AsyncClient, text: str) -> bytes:
     response = await client.post(
         f"{settings.tts_url}/speak",
-        json={"text": text, "speaker": "aiden", "language": "German"},
+        json={"text": text, "speaker": "serena", "language": "German"},
     )
     response.raise_for_status()
     return response.content

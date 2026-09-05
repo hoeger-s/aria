@@ -10,17 +10,18 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 camera.position.z = 5
 
 // Renderer: zeichnet die Szene tatsächlich als Bild und hängt sie ins HTML
-const renderer = new THREE.WebGLRenderer({ antialias: true})
+const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(window.devicePixelRatio)
 document.getElementById('app').appendChild(renderer.domElement)
 
-// Orb-Platzhalter: eine Kugel, Farbe = Idle-Zustand (gedimmtes Blau/Grau)
+// Orb: eine Kugel, Grundfarbe + zustandsabhaengiges Gluehen (emissive) obendrauf
 const geometry = new THREE.SphereGeometry(1, 32, 32)
 const material = new THREE.MeshStandardMaterial({
   color: 0x3a4a5c,
-  roughness: 0.4,   // 0 = spiegelglatt, 1 = komplett matt
-  metalness: 0.2,   // leichter metallischer Glanz statt Kunststoff-Look
+  roughness: 0.4,
+  metalness: 0.2,
+  emissive: 0x000000,
 })
 const orb = new THREE.Mesh(geometry, material)
 scene.add(orb)
@@ -33,9 +34,46 @@ scene.add(pointLight)
 // Umgebungslicht, damit die Schattenseite nicht komplett schwarz absäuft
 scene.add(new THREE.AmbientLight(0xffffff, 0.5))
 
-// Render-Loop: zeichnet die Szene immer wieder neu (nötig für spätere Animation)
+// Zustandsfarben laut Architektur-Notiz (UI-Layout und Farbschema)
+const STATE_COLORS = {
+  idle: new THREE.Color(0x3a4a5c),       // gleiche Farbe wie die Kugel selbst, nur als Glimmen
+  listening: new THREE.Color(0x3a4a5c),  // identisch zu idle
+  thinking: new THREE.Color(0x8b5cf6),   // sanftes Violett
+  speaking: new THREE.Color(0xd7f5ff),   // helles Cyan/Weiss
+}
+
+let orbState = 'idle'
+let orbLevel = 0        // roher Pegel-Wert aus der Analyse (Mikrofon bei listening, Wiedergabe bei speaking)
+let orbDisplayLevel = 0 // geglaetteter Wert, den die Optik tatsaechlich nutzt - verhindert hektisches Zucken
+
+function updateOrbAppearance() {
+  material.emissive.lerp(STATE_COLORS[orbState], 0.05)
+  orbDisplayLevel += (orbLevel - orbDisplayLevel) * 0.15
+
+  let targetScale = 1
+
+  if (orbState === 'thinking') {
+    const thinkPhase = Math.sin(performance.now() / 300)
+    material.emissiveIntensity = 0.5 + thinkPhase * 0.3
+    targetScale = 1 + thinkPhase * 0.05
+  } else if (orbState === 'speaking') {
+    material.emissiveIntensity = 0.1 + orbDisplayLevel * 0.6
+    targetScale = 1 + orbDisplayLevel * 0.15
+  } else {
+    const breathePhase = Math.sin(performance.now() / 1000)
+    material.emissiveIntensity = Math.max(breathePhase, 0) * 0.4
+    targetScale = 1 + breathePhase * 0.03
+  }
+
+  const currentScale = orb.scale.x
+  const newScale = currentScale + (targetScale - currentScale) * 0.05
+  orb.scale.setScalar(newScale)
+}
+
+// Render-Loop: zeichnet die Szene immer wieder neu, aktualisiert dabei den Orb-Zustand
 function animate() {
   requestAnimationFrame(animate)
+  updateOrbAppearance()
   renderer.render(scene, camera)
 }
 animate()
@@ -60,6 +98,10 @@ const modeToggleButton = document.getElementById('mode-toggle')
 const textInputContainer = document.getElementById('text-input-container')
 const textInput = document.getElementById('text-input')
 
+// Eigener AudioContext nur fuers Abspielen der TTS-Antworten - unabhaengig vom
+// Mikrofon-AudioContext, der beim Wechsel in den Textmodus komplett geschlossen wird
+const playbackContext = new AudioContext()
+
 // WebSocket-Verbindung zum Orchestrator
 const ws = new WebSocket('ws://localhost:8000/ws')
 
@@ -83,18 +125,67 @@ ws.addEventListener('message', (event) => {
     }
   } else {
     console.log('Audio-Antwort erhalten:', event.data.size, 'Bytes')
+    playAudioResponse(event.data)
   }
 })
+
+async function playAudioResponse(blob) {
+  if (blob.size === 0) {
+    console.warn('Leere Audio-Antwort erhalten (z. B. weil nichts Verstaendliches erkannt wurde) - nichts abzuspielen')
+    orbState = mode === 'voice' ? 'listening' : 'idle'
+    return
+  }
+
+  const arrayBuffer = await blob.arrayBuffer()
+  const audioBuffer = await playbackContext.decodeAudioData(arrayBuffer)
+
+  const source = playbackContext.createBufferSource()
+  source.buffer = audioBuffer
+
+  const gainNode = playbackContext.createGain()
+  gainNode.gain.value = 0.5 // Lautstaerke der Wiedergabe - senkt gleichzeitig den analysierten Pegel
+
+  const playbackAnalyser = playbackContext.createAnalyser()
+  playbackAnalyser.fftSize = 256
+  const playbackData = new Uint8Array(playbackAnalyser.frequencyBinCount)
+
+  source.connect(gainNode)
+  gainNode.connect(playbackAnalyser)
+  playbackAnalyser.connect(playbackContext.destination)
+
+  function updatePlaybackLevel() {
+    if (orbState !== 'speaking') return
+    playbackAnalyser.getByteFrequencyData(playbackData)
+    const average = playbackData.reduce((sum, v) => sum + v, 0) / playbackData.length
+    orbLevel = Math.min(average / 50, 1)
+    requestAnimationFrame(updatePlaybackLevel)
+  }
+
+  source.onended = () => {
+    orbState = mode === 'voice' ? 'listening' : 'idle'
+    orbLevel = 0
+  }
+
+  orbState = 'speaking'
+  source.start()
+  updatePlaybackLevel()
+}
 
 function sendAudio(blob) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(blob)
+    orbLevel = 0
+    orbDisplayLevel = 0
+    orbState = 'thinking'
   }
 }
 
 function sendText(text) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ text }))
+    orbLevel = 0
+    orbDisplayLevel = 0
+    orbState = 'thinking'
   }
 }
 
@@ -145,6 +236,10 @@ async function startMicrophone() {
     const average = data.reduce((sum, v) => sum + v, 0) / data.length
     const now = performance.now()
 
+    if (orbState === 'listening') {
+      orbLevel = Math.min(average / 50, 1)
+    }
+
     if (average > SPEECH_THRESHOLD) {
       belowThresholdSince = null
       if (aboveThresholdSince === null) aboveThresholdSince = now
@@ -189,10 +284,12 @@ function setMode(newMode) {
   if (mode === 'voice') {
     modeToggleButton.textContent = '⌨'
     textInputContainer.style.display = 'none'
+    orbState = 'listening'
     startMicrophone()
   } else {
     modeToggleButton.textContent = '🎤'
     textInputContainer.style.display = 'block'
+    orbState = 'idle'
     stopMicrophone()
     textInput.focus()
   }
@@ -202,12 +299,15 @@ modeToggleButton.addEventListener('click', () => {
   setMode(mode === 'voice' ? 'text' : 'voice')
 })
 
-// Falls der Browser den Audio-Kontext wegen der Autoplay-Policy zunaechst
+// Falls der Browser Audio-Kontexte wegen der Autoplay-Policy zunaechst
 // "suspended" laesst (kein Klick vor dem automatischen Start passiert):
 // beim ersten Klick irgendwo auf der Seite reaktivieren.
 document.addEventListener('click', () => {
   if (audioContext && audioContext.state === 'suspended') {
     audioContext.resume()
+  }
+  if (playbackContext.state === 'suspended') {
+    playbackContext.resume()
   }
 })
 
