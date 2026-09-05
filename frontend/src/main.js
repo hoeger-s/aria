@@ -24,6 +24,7 @@ const material = new THREE.MeshStandardMaterial({
   emissive: 0x000000,
 })
 const orb = new THREE.Mesh(geometry, material)
+orb.position.y = 0.8
 scene.add(orb)
 
 // Punktlicht, wirft einen Glanzpunkt/Schatten-Verlauf auf die Kugel
@@ -85,6 +86,28 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight)
 })
 
+const chatLog = document.getElementById('chat-log')
+let currentAssistantMessageEl = null
+
+function addUserMessage(text) {
+  const el = document.createElement('div')
+  el.className = 'chat-message chat-message-user'
+  el.textContent = text
+  chatLog.appendChild(el)
+  currentAssistantMessageEl = null
+  chatLog.scrollTop = chatLog.scrollHeight
+}
+
+function appendAssistantToken(token) {
+  if (!currentAssistantMessageEl) {
+    currentAssistantMessageEl = document.createElement('div')
+    currentAssistantMessageEl.className = 'chat-message chat-message-assistant'
+    chatLog.appendChild(currentAssistantMessageEl)
+  }
+  currentAssistantMessageEl.textContent += token
+  chatLog.scrollTop = chatLog.scrollHeight
+}
+
 const SPEECH_THRESHOLD = 15
 const START_DELAY_MS = 100
 const END_DELAY_MS = 500
@@ -120,8 +143,11 @@ ws.addEventListener('error', (event) => {
 ws.addEventListener('message', (event) => {
   if (typeof event.data === 'string') {
     const payload = JSON.parse(event.data)
-    if (payload.type === 'token') {
+    if (payload.type === 'user_message') {
+      addUserMessage(payload.content)
+    } else if (payload.type === 'token') {
       console.log('%c' + payload.content, 'color: cyan')
+      appendAssistantToken(payload.content)
     }
   } else {
     console.log('Audio-Antwort erhalten:', event.data.size, 'Bytes')

@@ -80,6 +80,7 @@ async def converse_ws(websocket: WebSocket):
             continue
 
         print(f"Prompt erhalten: {prompt!r}")
+        await websocket.send_json({"type": "user_message", "content": prompt})
 
         chunker = SentenceChunker()
         speak_tasks: list[asyncio.Task] = []
