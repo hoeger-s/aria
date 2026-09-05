@@ -42,7 +42,7 @@ aria/
 - [x] Sprachausgabe (Qwen3-TTS)
 - [x] Zusammenspiel aller Dienste über Docker Compose
 - [x] Orchestrator (FastAPI)
-- [ ] Web-Frontend mit Orb-UI
+- [x] Web-Frontend mit Orb-UI
 - [ ] Wakeword-Erkennung (Doppelklatschen)
 - [ ] Start-Workflow
 - [ ] Grundlegende Aktionen (Anwendungen starten, Musik abspielen, Suche)
