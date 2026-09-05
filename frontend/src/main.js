@@ -47,20 +47,29 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight)
 })
 
-async function startMicrophone() {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+const SPEECH_THRESHOLD = 15
+const START_DELAY_MS = 100
+const END_DELAY_MS = 500
 
-  const audioContext = new AudioContext()
-  const source = audioContext.createMediaStreamSource(stream)
+let mode = 'voice'
+let micStream = null
+let audioContext = null
+let animationFrameId = null
+
+const modeToggleButton = document.getElementById('mode-toggle')
+const textInputContainer = document.getElementById('text-input-container')
+const textInput = document.getElementById('text-input')
+
+async function startMicrophone() {
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+  audioContext = new AudioContext()
+  const source = audioContext.createMediaStreamSource(micStream)
   const analyser = audioContext.createAnalyser()
   analyser.fftSize = 256
   source.connect(analyser)
 
   const data = new Uint8Array(analyser.frequencyBinCount)
-
-  const SPEECH_THRESHOLD = 15   // Pegel-Schwelle: darüber = "spricht" — Platzhalter, kalibrieren wir gleich mit echten Werten
-  const START_DELAY_MS = 100    // so lange ununterbrochen über der Schwelle, bevor "Sprechbeginn" zählt
-  const END_DELAY_MS = 500      // so lange ununterbrochen unter der Schwelle, bevor "Sprechende" zählt
 
   let isSpeaking = false
   let aboveThresholdSince = null
@@ -87,9 +96,52 @@ async function startMicrophone() {
       }
     }
 
-    requestAnimationFrame(checkLevel)
+    animationFrameId = requestAnimationFrame(checkLevel)
   }
   checkLevel()
 }
 
-document.getElementById('start-mic').addEventListener('click', startMicrophone, { once: true })
+function stopMicrophone() {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+  if (micStream) {
+    micStream.getTracks().forEach((track) => track.stop())
+    micStream = null
+  }
+  if (audioContext) {
+    audioContext.close()
+    audioContext = null
+  }
+}
+
+function setMode(newMode) {
+  mode = newMode
+
+  if (mode === 'voice') {
+    modeToggleButton.textContent = '⌨'
+    textInputContainer.style.display = 'none'
+    startMicrophone()
+  } else {
+    modeToggleButton.textContent = '🎤'
+    textInputContainer.style.display = 'block'
+    stopMicrophone()
+    textInput.focus()
+  }
+}
+
+modeToggleButton.addEventListener('click', () => {
+  setMode(mode === 'voice' ? 'text' : 'voice')
+})
+
+// Falls der Browser den Audio-Kontext wegen der Autoplay-Policy zunaechst
+// "suspended" laesst (kein Klick vor dem automatischen Start passiert):
+// beim ersten Klick irgendwo auf der Seite reaktivieren.
+document.addEventListener('click', () => {
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume()
+  }
+})
+
+setMode('voice')
