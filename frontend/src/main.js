@@ -148,58 +148,85 @@ ws.addEventListener('message', (event) => {
     } else if (payload.type === 'token') {
       console.log('%c' + payload.content, 'color: cyan')
       appendAssistantToken(payload.content)
+    } else if (payload.type === 'response_complete') {
+      if (audioQueue.length === 0 && !isPlayingQueue) {
+        orbState = mode === 'voice' ? 'listening' : 'idle'
+      }
     }
   } else {
-    console.log('Audio-Antwort erhalten:', event.data.size, 'Bytes')
-    playAudioResponse(event.data)
+    enqueueAudio(event.data)
   }
 })
 
-async function playAudioResponse(blob) {
-  if (blob.size === 0) {
-    console.warn('Leere Audio-Antwort erhalten (z. B. weil nichts Verstaendliches erkannt wurde) - nichts abzuspielen')
+const audioQueue = []
+let isPlayingQueue = false
+
+function enqueueAudio(blob) {
+  audioQueue.push(blob)
+  if (!isPlayingQueue) {
+    playNextInQueue()
+  }
+}
+
+async function playNextInQueue() {
+  if (audioQueue.length === 0) {
+    isPlayingQueue = false
     orbState = mode === 'voice' ? 'listening' : 'idle'
     return
   }
 
-  const arrayBuffer = await blob.arrayBuffer()
-  const audioBuffer = await playbackContext.decodeAudioData(arrayBuffer)
+  isPlayingQueue = true
+  const blob = audioQueue.shift()
+  await playAudioSegment(blob)
+  playNextInQueue()
+}
 
-  const source = playbackContext.createBufferSource()
-  source.buffer = audioBuffer
+function playAudioSegment(blob) {
+  return new Promise(async (resolve) => {
+    if (blob.size === 0) {
+      resolve()
+      return
+    }
 
-  const gainNode = playbackContext.createGain()
-  gainNode.gain.value = 0.5 // Lautstaerke der Wiedergabe - senkt gleichzeitig den analysierten Pegel
+    const arrayBuffer = await blob.arrayBuffer()
+    const audioBuffer = await playbackContext.decodeAudioData(arrayBuffer)
 
-  const playbackAnalyser = playbackContext.createAnalyser()
-  playbackAnalyser.fftSize = 256
-  const playbackData = new Uint8Array(playbackAnalyser.frequencyBinCount)
+    const source = playbackContext.createBufferSource()
+    source.buffer = audioBuffer
 
-  source.connect(gainNode)
-  gainNode.connect(playbackAnalyser)
-  playbackAnalyser.connect(playbackContext.destination)
+    const gainNode = playbackContext.createGain()
+    gainNode.gain.value = 0.5
 
-  function updatePlaybackLevel() {
-    if (orbState !== 'speaking') return
-    playbackAnalyser.getByteFrequencyData(playbackData)
-    const average = playbackData.reduce((sum, v) => sum + v, 0) / playbackData.length
-    orbLevel = Math.min(average / 50, 1)
-    requestAnimationFrame(updatePlaybackLevel)
-  }
+    const playbackAnalyser = playbackContext.createAnalyser()
+    playbackAnalyser.fftSize = 256
+    const playbackData = new Uint8Array(playbackAnalyser.frequencyBinCount)
 
-  source.onended = () => {
-    orbState = mode === 'voice' ? 'listening' : 'idle'
-    orbLevel = 0
-  }
+    source.connect(gainNode)
+    gainNode.connect(playbackAnalyser)
+    playbackAnalyser.connect(playbackContext.destination)
 
-  orbState = 'speaking'
-  source.start()
-  updatePlaybackLevel()
+    function updatePlaybackLevel() {
+      if (orbState !== 'speaking') return
+      playbackAnalyser.getByteFrequencyData(playbackData)
+      const average = playbackData.reduce((sum, v) => sum + v, 0) / playbackData.length
+      orbLevel = Math.min(average / 50, 1)
+      requestAnimationFrame(updatePlaybackLevel)
+    }
+
+    source.onended = () => {
+      resolve()
+    }
+
+    orbState = 'speaking'
+    source.start()
+    updatePlaybackLevel()
+  })
 }
 
 function sendAudio(blob) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(blob)
+    audioQueue.length = 0
     orbLevel = 0
     orbDisplayLevel = 0
     orbState = 'thinking'
@@ -209,6 +236,7 @@ function sendAudio(blob) {
 function sendText(text) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ text }))
+    audioQueue.length = 0
     orbLevel = 0
     orbDisplayLevel = 0
     orbState = 'thinking'

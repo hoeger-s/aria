@@ -6,7 +6,16 @@ import httpx
 from audio import concat_wavs
 from chunking import SentenceChunker
 from clients import generate_stream, speak, transcribe
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import Response
 
 
@@ -60,6 +69,35 @@ async def converse(
     return Response(content=concat_wavs(audio_chunks), media_type="audio/wav")
 
 
+async def generate_and_chunk(
+    client: httpx.AsyncClient,
+    prompt: str,
+    sentence_queue: asyncio.Queue[str | None],
+    websocket: WebSocket,
+):
+    chunker = SentenceChunker()
+    async for token in generate_stream(client, prompt):
+        await websocket.send_json({"type": "token", "content": token})
+        for sentence in chunker.feed(token):
+            await sentence_queue.put(sentence)
+    for sentence in chunker.flush():
+        await sentence_queue.put(sentence)
+    await sentence_queue.put(None)
+
+
+async def speak_and_send(
+    client: httpx.AsyncClient,
+    sentence_queue: asyncio.Queue[str | None],
+    websocket: WebSocket,
+):
+    while True:
+        sentence = await sentence_queue.get()
+        if sentence is None:
+            break
+        audio = await speak(client, sentence)
+        await websocket.send_bytes(audio)
+
+
 @app.websocket("/ws")
 async def converse_ws(websocket: WebSocket):
     await websocket.accept()
@@ -80,18 +118,16 @@ async def converse_ws(websocket: WebSocket):
             continue
 
         print(f"Prompt erhalten: {prompt!r}")
-        await websocket.send_json({"type": "user_message", "content": prompt})
 
-        chunker = SentenceChunker()
-        speak_tasks: list[asyncio.Task] = []
+        try:
+            await websocket.send_json({"type": "user_message", "content": prompt})
 
-        async for token in generate_stream(client, prompt):
-            await websocket.send_json({"type": "token", "content": token})
-            for sentence in chunker.feed(token):
-                speak_tasks.append(asyncio.create_task(speak(client, sentence)))
+            sentence_queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-        for sentence in chunker.flush():
-            speak_tasks.append(asyncio.create_task(speak(client, sentence)))
-
-        audio_chunks = await asyncio.gather(*speak_tasks)
-        await websocket.send_bytes(concat_wavs(audio_chunks))
+            await asyncio.gather(
+                generate_and_chunk(client, prompt, sentence_queue, websocket),
+                speak_and_send(client, sentence_queue, websocket),
+            )
+            await websocket.send_json({"type": "response_complete"})
+        except WebSocketDisconnect:
+            break
