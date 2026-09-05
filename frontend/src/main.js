@@ -58,10 +58,35 @@ async function startMicrophone() {
 
   const data = new Uint8Array(analyser.frequencyBinCount)
 
+  const SPEECH_THRESHOLD = 15   // Pegel-Schwelle: darüber = "spricht" — Platzhalter, kalibrieren wir gleich mit echten Werten
+  const START_DELAY_MS = 100    // so lange ununterbrochen über der Schwelle, bevor "Sprechbeginn" zählt
+  const END_DELAY_MS = 500      // so lange ununterbrochen unter der Schwelle, bevor "Sprechende" zählt
+
+  let isSpeaking = false
+  let aboveThresholdSince = null
+  let belowThresholdSince = null
+
   function checkLevel() {
     analyser.getByteFrequencyData(data)
     const average = data.reduce((sum, v) => sum + v, 0) / data.length
-    console.log('Mikrofon-Pegel:', average.toFixed(1))
+    const now = performance.now()
+
+    if (average > SPEECH_THRESHOLD) {
+      belowThresholdSince = null
+      if (aboveThresholdSince === null) aboveThresholdSince = now
+      if (!isSpeaking && now - aboveThresholdSince > START_DELAY_MS) {
+        isSpeaking = true
+        console.log('%cSprechbeginn erkannt', 'color: lightgreen')
+      }
+    } else {
+      aboveThresholdSince = null
+      if (belowThresholdSince === null) belowThresholdSince = now
+      if (isSpeaking && now - belowThresholdSince > END_DELAY_MS) {
+        isSpeaking = false
+        console.log('%cSprechende erkannt', 'color: orange')
+      }
+    }
+
     requestAnimationFrame(checkLevel)
   }
   checkLevel()
