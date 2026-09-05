@@ -1,17 +1,18 @@
 import asyncio
+import json
 from contextlib import asynccontextmanager
 
 import httpx
 from audio import concat_wavs
 from chunking import SentenceChunker
 from clients import generate_stream, speak, transcribe
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket
 from fastapi.responses import Response
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.http_client = httpx.AsyncClient(timeout=30.0)
+    app.state.http_client = httpx.AsyncClient(timeout=60.0)
     yield
     await app.state.http_client.aclose()
 
@@ -57,3 +58,39 @@ async def converse(
     audio_chunks = await asyncio.gather(*speak_tasks)
 
     return Response(content=concat_wavs(audio_chunks), media_type="audio/wav")
+
+
+@app.websocket("/ws")
+async def converse_ws(websocket: WebSocket):
+    await websocket.accept()
+    client = websocket.app.state.http_client
+
+    while True:
+        message = await websocket.receive()
+
+        if message["type"] == "websocket.disconnect":
+            break
+
+        if message.get("bytes") is not None:
+            prompt = await transcribe(client, message["bytes"], "audio.webm")
+        elif message.get("text") is not None:
+            payload = json.loads(message["text"])
+            prompt = payload["text"]
+        else:
+            continue
+
+        print(f"Prompt erhalten: {prompt!r}")
+
+        chunker = SentenceChunker()
+        speak_tasks: list[asyncio.Task] = []
+
+        async for token in generate_stream(client, prompt):
+            await websocket.send_json({"type": "token", "content": token})
+            for sentence in chunker.feed(token):
+                speak_tasks.append(asyncio.create_task(speak(client, sentence)))
+
+        for sentence in chunker.flush():
+            speak_tasks.append(asyncio.create_task(speak(client, sentence)))
+
+        audio_chunks = await asyncio.gather(*speak_tasks)
+        await websocket.send_bytes(concat_wavs(audio_chunks))

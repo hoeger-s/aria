@@ -3,6 +3,9 @@ import wave
 
 
 def concat_wavs(chunks: list[bytes]) -> bytes:
+    if not chunks:
+        return b""
+
     output = io.BytesIO()
     writer = None
 

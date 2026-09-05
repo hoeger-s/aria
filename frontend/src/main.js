@@ -60,6 +60,51 @@ const modeToggleButton = document.getElementById('mode-toggle')
 const textInputContainer = document.getElementById('text-input-container')
 const textInput = document.getElementById('text-input')
 
+// WebSocket-Verbindung zum Orchestrator
+const ws = new WebSocket('ws://localhost:8000/ws')
+
+ws.addEventListener('open', () => {
+  console.log('%cWebSocket verbunden', 'color: lightgreen')
+})
+
+ws.addEventListener('close', () => {
+  console.log('%cWebSocket getrennt', 'color: orange')
+})
+
+ws.addEventListener('error', (event) => {
+  console.error('WebSocket-Fehler', event)
+})
+
+ws.addEventListener('message', (event) => {
+  if (typeof event.data === 'string') {
+    const payload = JSON.parse(event.data)
+    if (payload.type === 'token') {
+      console.log('%c' + payload.content, 'color: cyan')
+    }
+  } else {
+    console.log('Audio-Antwort erhalten:', event.data.size, 'Bytes')
+  }
+})
+
+function sendAudio(blob) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(blob)
+  }
+}
+
+function sendText(text) {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ text }))
+  }
+}
+
+textInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && textInput.value.trim() !== '') {
+    sendText(textInput.value.trim())
+    textInput.value = ''
+  }
+})
+
 async function startMicrophone() {
   micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
@@ -74,6 +119,26 @@ async function startMicrophone() {
   let isSpeaking = false
   let aboveThresholdSince = null
   let belowThresholdSince = null
+  let recorder = null
+  let recordedChunks = []
+
+  function startRecording() {
+    recordedChunks = []
+    recorder = new MediaRecorder(micStream)
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) recordedChunks.push(event.data)
+    }
+    recorder.start()
+  }
+
+  function stopRecordingAndSend() {
+    if (!recorder) return
+    recorder.onstop = () => {
+      const audioBlob = new Blob(recordedChunks, { type: recorder.mimeType })
+      sendAudio(audioBlob)
+    }
+    recorder.stop()
+  }
 
   function checkLevel() {
     analyser.getByteFrequencyData(data)
@@ -86,6 +151,7 @@ async function startMicrophone() {
       if (!isSpeaking && now - aboveThresholdSince > START_DELAY_MS) {
         isSpeaking = true
         console.log('%cSprechbeginn erkannt', 'color: lightgreen')
+        startRecording()
       }
     } else {
       aboveThresholdSince = null
@@ -93,6 +159,7 @@ async function startMicrophone() {
       if (isSpeaking && now - belowThresholdSince > END_DELAY_MS) {
         isSpeaking = false
         console.log('%cSprechende erkannt', 'color: orange')
+        stopRecordingAndSend()
       }
     }
 
