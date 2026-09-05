@@ -46,3 +46,25 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
 })
+
+async function startMicrophone() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+  const audioContext = new AudioContext()
+  const source = audioContext.createMediaStreamSource(stream)
+  const analyser = audioContext.createAnalyser()
+  analyser.fftSize = 256
+  source.connect(analyser)
+
+  const data = new Uint8Array(analyser.frequencyBinCount)
+
+  function checkLevel() {
+    analyser.getByteFrequencyData(data)
+    const average = data.reduce((sum, v) => sum + v, 0) / data.length
+    console.log('Mikrofon-Pegel:', average.toFixed(1))
+    requestAnimationFrame(checkLevel)
+  }
+  checkLevel()
+}
+
+document.getElementById('start-mic').addEventListener('click', startMicrophone, { once: true })
