@@ -1,6 +1,7 @@
 import json
 
 import httpx
+from persona import SYSTEM_PROMPT
 from settings import settings
 
 
@@ -16,7 +17,7 @@ async def transcribe(client: httpx.AsyncClient, audio_bytes: bytes, filename: st
 async def generate(client: httpx.AsyncClient, prompt: str) -> str:
     response = await client.post(
         f"{settings.ollama_url}/api/generate",
-        json={"model": "qwen2.5:7b", "prompt": prompt, "stream": False},
+        json={"model": "qwen2.5:7b", "prompt": prompt, "system": SYSTEM_PROMPT, "stream": False},
     )
     response.raise_for_status()
     return response.json()["response"]
@@ -26,7 +27,7 @@ async def generate_stream(client: httpx.AsyncClient, prompt: str):
     async with client.stream(
         "POST",
         f"{settings.ollama_url}/api/generate",
-        json={"model": "qwen2.5:7b", "prompt": prompt, "stream": True},
+        json={"model": "qwen2.5:7b", "prompt": prompt, "system": SYSTEM_PROMPT, "stream": True},
     ) as response:
         response.raise_for_status()
         async for line in response.aiter_lines():
