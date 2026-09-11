@@ -3,6 +3,7 @@ name = "aria"
 version = "0.1.0"
 description = "ARIA - lokaler KI-Companion mit Sprachein- und -ausgabe"
 requires-python = ">=3.13"
+dependencies = ["sounddevice"]
 
 [tool.ruff]
 line-length = 100
