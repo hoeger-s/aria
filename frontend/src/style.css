@@ -31,21 +31,79 @@ html, body {
 }
 
 .chat-message {
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
   max-width: 80%;
   font-size: 0.95rem;
   line-height: 1.4;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(215, 245, 255, 0.08);
 }
 
 .chat-message-user {
   align-self: flex-end;
-  background: #3a4a5c;
+  background: rgba(58, 74, 92, 0.75);
   color: #fff;
 }
 
 .chat-message-assistant {
   align-self: flex-start;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: #d7f5ff;
+}
+
+/* Eingabezeile: gleiche Glas-Optik wie die Chat-Blasen, damit Fenster,
+   Eingabefeld und Umschalt-Button wie ein zusammenhaengendes Element wirken
+   statt drei getrennt gestylter Teile */
+#text-input-container {
+  position: fixed;
+  bottom: 4rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+
+#text-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+  font-family: sans-serif;
+  color: #d7f5ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(215, 245, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+#text-input::placeholder {
+  color: rgba(215, 245, 255, 0.4);
+}
+
+#text-input:focus {
+  border-color: rgba(215, 245, 255, 0.5);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+#mode-toggle {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  font-size: 1.2rem;
+  color: #d7f5ff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(215, 245, 255, 0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+#mode-toggle:hover {
+  border-color: rgba(215, 245, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
 }
