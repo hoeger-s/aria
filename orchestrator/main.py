@@ -1,11 +1,12 @@
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 import httpx
 from audio import concat_wavs
 from chunking import SentenceChunker
-from clients import generate_stream, speak, transcribe
+from clients import fetch_weather, generate_stream, speak, transcribe
 from fastapi import (
     FastAPI,
     File,
@@ -98,10 +99,38 @@ async def speak_and_send(
         await websocket.send_bytes(audio)
 
 
+GERMAN_WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+
+async def send_greeting(client: httpx.AsyncClient, websocket: WebSocket):
+    now = datetime.now()
+    date_str = f"{GERMAN_WEEKDAYS[now.weekday()]}, {now.strftime('%d.%m.%Y')}"
+    time_str = now.strftime("%H:%M")
+
+    facts = f"Aktuelles Datum: {date_str}. Aktuelle Uhrzeit: {time_str} Uhr."
+    weather = await fetch_weather(client)
+    if weather:
+        facts += f" {weather}"
+
+    prompt = f"{facts} Begrüße mich zum Start in deinem gewohnten Charakter und nenne mir diese Informationen."
+
+    sentence_queue: asyncio.Queue[str | None] = asyncio.Queue()
+    await asyncio.gather(
+        generate_and_chunk(client, prompt, sentence_queue, websocket),
+        speak_and_send(client, sentence_queue, websocket),
+    )
+    await websocket.send_json({"type": "response_complete"})
+
+
 @app.websocket("/ws")
 async def converse_ws(websocket: WebSocket):
     await websocket.accept()
     client = websocket.app.state.http_client
+
+    try:
+        await send_greeting(client, websocket)
+    except WebSocketDisconnect:
+        return
 
     while True:
         message = await websocket.receive()
