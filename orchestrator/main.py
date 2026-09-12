@@ -112,7 +112,13 @@ async def send_greeting(client: httpx.AsyncClient, websocket: WebSocket):
     if weather:
         facts += f" {weather}"
 
-    prompt = f"{facts} Begrüße mich zum Start in deinem gewohnten Charakter und nenne mir diese Informationen."
+    prompt = (
+        f"{facts} Begrüße mich jetzt zum Gesprächsstart in deinem gewohnten Charakter. "
+        "Beginne direkt mit einer netten Begrüßung passend zur Tageszeit "
+        '("Guten Morgen"/"Guten Tag"/"Guten Abend") und einem kurzen "Schön, dich wiederzusehen" '
+        "oder ähnlichem, füge Datum, Uhrzeit und Wetter danach natürlich mit ein. "
+        'Starte auf keinen Fall mit einer Überleitung wie "Na gut", "Also" oder "Hier sind die Informationen".'
+    )
 
     sentence_queue: asyncio.Queue[str | None] = asyncio.Queue()
     await asyncio.gather(
