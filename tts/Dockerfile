@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir numpy typing_extensions
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
+COPY voice_ref/ voice_ref/
 
 EXPOSE 8002
 
